@@ -1,0 +1,3 @@
+#define LTFS_COPYRIGHT_0 
+#define LTFS_COPYRIGHT_1
+#define LTFS_COPYRIGHT_2
