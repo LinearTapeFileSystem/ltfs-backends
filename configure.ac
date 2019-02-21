@@ -6,6 +6,7 @@ AC_INIT([ltfs-plugins], [0.1], [manu@netbsd.org])
 AC_CONFIG_SRCDIR([src/tape_drivers/netbsd/ltotape/ltotape.c])
 AC_CONFIG_MACRO_DIRS([m4])
 AC_CONFIG_MACRO_DIR([m4]) 
+AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
 AC_CONFIG_HEADERS([config.h])
 AC_PROG_CC
@@ -99,8 +100,25 @@ AM_CPPFLAGS="${AM_CPPFLAGS} `${PKG_CONFIG} --cflags ltfs`"
 AM_CPPFLAGS="${AM_CPPFLAGS} `${PKG_CONFIG} --cflags fuse`"
 AM_CPPFLAGS="${AM_CPPFLAGS} -DIBM_LTFS_BUILD -DGENERIC_OEM_BUILD"
 AM_CPPFLAGS="${AM_CPPFLAGS} ${ICU_MODULE_CFLAGS}"
-#AM_CPPFLAGS="${AM_CPPFLAGS} -DENOMEDIUM=EAGAIN"
 
+case "${target_os}" in
+    linux*)
+	target_linux=yes
+        ;;
+    darwin*)
+        host_mac=yes
+        ;;
+    netbsd*)
+        target_netbsd=yes
+        ;;
+    *)
+        AC_MSG_ERROR(["OS $target_os is not supported"])
+        ;;
+esac
+
+AM_CONDITIONAL([PLATFORM_LINUX], [test "x${target_linux}" = "xyes"])
+AM_CONDITIONAL([PLATFORM_MAC], [test "x${target_mac}" = "xyes"])
+AM_CONDITIONAL([PLATFORM_NETBSD], [test "x${target_netbsd}" = "xyes"])
 AM_CONDITIONAL([CHK_MESSAGE], [test "x${use_msg_check}" = "xyes"])
 
 AC_SUBST(CFLAGS)
@@ -109,5 +127,8 @@ AC_SUBST(AM_EXTRA_CPPFLAGS)
 AC_SUBST(AM_CFLAGS)
 AC_SUBST(AM_LDFLAGS) 
 
-AC_CONFIG_FILES([Makefile messages/Makefile src/tape_drivers/netbsd/ltotape/Makefile])
+AC_CONFIG_FILES([Makefile messages/Makefile 
+                 src/tape_drivers/linux/ltotape/Makefile
+                 src/tape_drivers/osx/ltotape/Makefile
+                 src/tape_drivers/netbsd/ltotape/Makefile])
 AC_OUTPUT
