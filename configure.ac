@@ -5,13 +5,40 @@ AC_PREREQ([2.69])
 AC_INIT([ltfs-plugins], [0.1], [manu@netbsd.org])
 AC_CONFIG_SRCDIR([src/tape_drivers/netbsd/ltotape/ltotape.c])
 AC_CONFIG_MACRO_DIRS([m4])
-AC_CONFIG_MACRO_DIR([m4]) 
+AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
 AC_CONFIG_HEADERS([config.h])
 AC_PROG_CC
+AC_PROG_CC_C99
+AM_PROG_CC_C_O
 AM_PROG_AR
 AC_PROG_LIBTOOL
 
+dnl
+dnl Detecting OS
+dnl
+host_linux=no
+host_mac=no
+host_freebsd=no
+host_netbsd=no
+
+case "${host_os}" in
+    linux*)
+        host_linux=yes
+        ;;
+    darwin*)
+        host_mac=yes
+        ;;
+    freebsd*)
+        host_freebsd=yes
+        ;;
+    netbsd*)
+        host_netbsd=yes
+        ;;
+    *)
+        AC_MSG_ERROR(["OS $host_os is not supported"])
+        ;;
+esac
 
 # Checks for header files.
 AC_CHECK_HEADERS([fcntl.h inttypes.h stdlib.h string.h sys/file.h sys/ioctl.h unistd.h])
@@ -27,15 +54,15 @@ AC_TYPE_UINT8_T
 # Checks for library functions.
 AC_CHECK_FUNCS([memset strerror strstr])
 
-dnl  
+dnl
 dnl Check for pkg-config
-dnl 
-if test -z "$PKG_CONFIG" 
+dnl
+if test -z "$PKG_CONFIG"
 then
-    AC_PATH_PROG(PKG_CONFIG, pkg-config, [no]) 
-fi  
+    AC_PATH_PROG(PKG_CONFIG, pkg-config, [no])
+fi
 if test "x${PKG_CONFIG}" = "xno"
-then   
+then
     AC_MSG_ERROR([pkg-config was not found])
 fi
 
@@ -47,13 +74,13 @@ if test "x${GENRB}" = "xno"
 then
     AC_MSG_ERROR([genrb was not found])
 fi
-  
-dnl 
+
+dnl
 dnl Check for pkgdata
-dnl 
+dnl
 AC_PATH_PROG(PKGDATA, pkgdata, no)
 if test "x${PKGDATA}" = "xno"
-then          
+then
     AC_MSG_ERROR([pkgdata was not found])
 fi
 
@@ -94,6 +121,10 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([#include <errno.h>],[
 #error no ENOMEDIUM
 #endif])],[],[AM_CPPFLAGS="${AM_CPPFLAGS} -DENOMEDIUM=EAGAIN"])
 
+if test "x${host_linux}" = "xyes"
+then
+    AM_CPPFLAGS="-D_GNU_SOURCE"
+fi
 
 AM_CPPFLAGS="${AM_CPPFLAGS} `${PKG_CONFIG} --cflags ltfs`"
 AM_CPPFLAGS="${AM_CPPFLAGS} `${PKG_CONFIG} --cflags fuse`"
@@ -101,13 +132,27 @@ AM_CPPFLAGS="${AM_CPPFLAGS} -DIBM_LTFS_BUILD -DGENERIC_OEM_BUILD"
 AM_CPPFLAGS="${AM_CPPFLAGS} ${ICU_MODULE_CFLAGS}"
 #AM_CPPFLAGS="${AM_CPPFLAGS} -DENOMEDIUM=EAGAIN"
 
+dnl
+dnl Define options
+dnl
+AM_CONDITIONAL([PLATFORM_LINUX], [test "x${host_linux}" = "xyes"])
+AM_CONDITIONAL([ENABLE_LIN_TAPE], [test "x${lintape}" = "xyes"])
+AM_CONDITIONAL([PLATFORM_MAC], [test "x${host_mac}" = "xyes"])
+AM_CONDITIONAL([PLATFORM_FREEBSD], [test "x${host_freebsd}" = "xyes"])
+AM_CONDITIONAL([PLATFORM_NETBSD], [test "x${host_netbsd}" = "xyes"])
 AM_CONDITIONAL([CHK_MESSAGE], [test "x${use_msg_check}" = "xyes"])
 
 AC_SUBST(CFLAGS)
 AC_SUBST(AM_CPPFLAGS)
 AC_SUBST(AM_EXTRA_CPPFLAGS)
 AC_SUBST(AM_CFLAGS)
-AC_SUBST(AM_LDFLAGS) 
+AC_SUBST(AM_LDFLAGS)
 
-AC_CONFIG_FILES([Makefile messages/Makefile src/tape_drivers/netbsd/ltotape/Makefile])
+AC_CONFIG_FILES([
+    Makefile
+    messages/Makefile
+    src/tape_drivers/generic/dummy/Makefile
+    src/tape_drivers/netbsd/ltotape/Makefile
+])
+
 AC_OUTPUT
