@@ -5,14 +5,31 @@ AC_PREREQ([2.69])
 AC_INIT([ltfs-plugins], [0.1], [manu@netbsd.org])
 AC_CONFIG_SRCDIR([src/tape_drivers/netbsd/ltotape/ltotape.c])
 AC_CONFIG_MACRO_DIRS([m4])
-AC_CONFIG_MACRO_DIR([m4]) 
+AC_CONFIG_MACRO_DIR([m4])
 AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
 AC_CONFIG_HEADERS([config.h])
 AC_PROG_CC
+AC_PROG_CC_C99
+AM_PROG_CC_C_O
 AM_PROG_AR
 AC_PROG_LIBTOOL
 
+# Detecting target OS
+case "${target_os}" in
+    linux*)
+        target_linux=yes
+        ;;
+    darwin*)
+        target_mac=yes
+        ;;
+    netbsd*)
+        target_netbsd=yes
+        ;;
+    *)
+        AC_MSG_ERROR(["OS $target_os is not supported"])
+        ;;
+esac
 
 # Checks for header files.
 AC_CHECK_HEADERS([fcntl.h inttypes.h stdlib.h string.h sys/file.h sys/ioctl.h unistd.h])
@@ -28,15 +45,15 @@ AC_TYPE_UINT8_T
 # Checks for library functions.
 AC_CHECK_FUNCS([memset strerror strstr])
 
-dnl  
+dnl
 dnl Check for pkg-config
-dnl 
-if test -z "$PKG_CONFIG" 
+dnl
+if test -z "$PKG_CONFIG"
 then
-    AC_PATH_PROG(PKG_CONFIG, pkg-config, [no]) 
-fi  
+    AC_PATH_PROG(PKG_CONFIG, pkg-config, [no])
+fi
 if test "x${PKG_CONFIG}" = "xno"
-then   
+then
     AC_MSG_ERROR([pkg-config was not found])
 fi
 
@@ -48,13 +65,13 @@ if test "x${GENRB}" = "xno"
 then
     AC_MSG_ERROR([genrb was not found])
 fi
-  
-dnl 
+
+dnl
 dnl Check for pkgdata
-dnl 
+dnl
 AC_PATH_PROG(PKGDATA, pkgdata, no)
 if test "x${PKGDATA}" = "xno"
-then          
+then
     AC_MSG_ERROR([pkgdata was not found])
 fi
 
@@ -88,6 +105,17 @@ then
 fi
 
 dnl
+dnl interface checker
+dnl
+AC_MSG_CHECKING([No driver build, only check backend I/F])
+AC_ARG_ENABLE([checkonly],
+    [AS_HELP_STRING([--enable-checkonly],[No driver build, only check backend I/F])],
+    [checkonly=$enableval],
+    [checkonly=no]
+)
+AC_MSG_RESULT([$checkonly])
+
+dnl
 dnl test for ENOMEDIUM
 dnl
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([#include <errno.h>],[
@@ -95,39 +123,30 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([#include <errno.h>],[
 #error no ENOMEDIUM
 #endif])],[],[AM_CPPFLAGS="${AM_CPPFLAGS} -DENOMEDIUM=EAGAIN"])
 
+if test "x${target_linux}" = "xyes"
+then
+    AM_CPPFLAGS="-D_GNU_SOURCE"
+fi
 
 AM_CPPFLAGS="${AM_CPPFLAGS} `${PKG_CONFIG} --cflags ltfs`"
 AM_CPPFLAGS="${AM_CPPFLAGS} `${PKG_CONFIG} --cflags fuse`"
 AM_CPPFLAGS="${AM_CPPFLAGS} -DIBM_LTFS_BUILD -DGENERIC_OEM_BUILD"
 AM_CPPFLAGS="${AM_CPPFLAGS} ${ICU_MODULE_CFLAGS}"
 
-case "${target_os}" in
-    linux*)
-	target_linux=yes
-        ;;
-    darwin*)
-        host_mac=yes
-        ;;
-    netbsd*)
-        target_netbsd=yes
-        ;;
-    *)
-        AC_MSG_ERROR(["OS $target_os is not supported"])
-        ;;
-esac
-
 AM_CONDITIONAL([PLATFORM_LINUX], [test "x${target_linux}" = "xyes"])
 AM_CONDITIONAL([PLATFORM_MAC], [test "x${target_mac}" = "xyes"])
 AM_CONDITIONAL([PLATFORM_NETBSD], [test "x${target_netbsd}" = "xyes"])
+AM_CONDITIONAL([CHECKONLY], [test "x${checkonly}" = "xyes"])
 AM_CONDITIONAL([CHK_MESSAGE], [test "x${use_msg_check}" = "xyes"])
 
 AC_SUBST(CFLAGS)
 AC_SUBST(AM_CPPFLAGS)
 AC_SUBST(AM_EXTRA_CPPFLAGS)
 AC_SUBST(AM_CFLAGS)
-AC_SUBST(AM_LDFLAGS) 
+AC_SUBST(AM_LDFLAGS)
 
-AC_CONFIG_FILES([Makefile messages/Makefile 
+AC_CONFIG_FILES([Makefile messages/Makefile
+                 src/tape_drivers/generic/dummy/Makefile
                  src/tape_drivers/linux/ltotape/Makefile
                  src/tape_drivers/osx/ltotape/Makefile
                  src/tape_drivers/netbsd/ltotape/Makefile])
