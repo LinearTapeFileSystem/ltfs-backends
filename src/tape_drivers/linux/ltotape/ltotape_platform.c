@@ -35,7 +35,6 @@
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <scsi/sg.h>
-#include <scsi/scsi.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
 #include <string.h>
@@ -43,9 +42,12 @@
 #include "../../../libltfs/ltfs_error.h"
 #include "../../../ltfsprintf.h"
 #include "../../../libltfs/ltfslogging.h"
+
 #include "ltotape.h"
 #include "ltotape_diag.h"
 #include "ltotape_supdevs.h"
+
+#include <scsi/scsi.h>
 
 /*
  * Max transfer size to ask the SG driver to handle (1MB):
@@ -114,7 +116,7 @@ int ltotape_scsiexec (ltotape_scsi_io_type *scsi_io)
 
   memset ((void *)&sg_io, 0, sizeof (sg_io));
 
-  /* 
+  /*
    * Set up required fields
    */
   sg_io.interface_id    = (int) 'S';
@@ -138,12 +140,12 @@ int ltotape_scsiexec (ltotape_scsi_io_type *scsi_io)
     free (sense_string);
   }
 
-  /* 
-   * Here's the actual command execution 
+  /*
+   * Here's the actual command execution
    */
   status = ioctl (scsi_io->fd, SG_IO, &sg_io);
 
-  /* 
+  /*
    * Now determine the outcome:
    */
   scsi_status = S_NO_STATUS; /* Until proven otherwise... */
@@ -152,34 +154,34 @@ int ltotape_scsiexec (ltotape_scsi_io_type *scsi_io)
   if ((status < 0) || ((sg_io.driver_status & 0xF) == SG_ERR_DRIVER_INVALID)) {
     driver_status = DS_ILLEGAL;
 
-  /* 
+  /*
    * Unit didn't respond to selection
    */
   } else if (sg_io.host_status == SG_ERR_DID_NO_CONNECT) {
     driver_status = DS_SELECTION_TIMEOUT;
 
-  /* 
+  /*
    * Unit timed out
    */
   } else if (sg_io.host_status == SG_ERR_DID_TIME_OUT) {
     driver_status = DS_TIMEOUT;
     errno = ETIMEDOUT;
 
-  /* 
+  /*
    * Bus (link, whatever) was reset
    */
   } else if (sg_io.host_status == SG_ERR_DID_RESET) {
     driver_status = DS_RESET;
     if (errno == 0) errno = EIO; /* ensure it doesn't go unnoticed */
 
-  /* 
-   * Good driver status 
+  /*
+   * Good driver status
    */
   } else if (sg_io.host_status == SG_ERR_DID_OK) {
     driver_status = DS_GOOD;
     scsi_status = sg_io.status;
 
-  /* 
+  /*
    * For anything else, create a composite value of "driver status" to help with debug
    */
   } else
@@ -188,7 +190,7 @@ int ltotape_scsiexec (ltotape_scsi_io_type *scsi_io)
   scsi_io->actual_data_length     = sg_io.dxfer_len - sg_io.resid;
   scsi_io->sense_length           = sg_io.sb_len_wr;
 
-  /* 
+  /*
    * A driver error is always bad news
    */
   if (driver_status != DS_GOOD) {
@@ -316,28 +318,28 @@ int ltotape_map_st2sg (const char *devname, char *sgdevname)
     int host_unique_id;
   } devinfo;
 
-  /* 
+  /*
    * First check for a valid device name:
    */
   if (devname == (const char *)NULL) {
     ltfsmsg (LTFS_ERR, "20032E", devname, "Null device name");
     return -EDEV_INVALID_ARG;
-   
-  /* 
+
+  /*
    * If the given device is already a 'sg' device, nothing to be done.
    */
   } else if (strstr (devname, "/dev/sg") != (char*)NULL) {
     strcpy (sgdevname, devname);
     return DEVICE_GOOD;
-   
-  /* 
+
+  /*
    * If the given device is a 'st' device, change it to an 'nst' device to ensure that
    * on close the driver doesn't issue a rewind command to the tape.
    */
   } else if (strstr (devname, "/dev/st") != (char *)NULL) {
     length = strlen (devname) + 2; /* +1 for 'n' and +1 for '\0' */
     outcome = asprintf (&temp, "%s", devname + strlen ("/dev/st"));
-    
+
     if ((outcome == -1) || (!temp)) {   /* Low on memory or other error. Return failure. */
       ltfsmsg (LTFS_ERR, "20100E");
       sgdevname = NULL;
@@ -348,7 +350,7 @@ int ltotape_map_st2sg (const char *devname, char *sgdevname)
     if (!nstdevname) {      /* Low on memory. Return failure. */
       ltfsmsg (LTFS_ERR, "20100E");
       if (temp) {
-        free (temp); 
+        free (temp);
         temp = NULL;
       }
       sgdevname = NULL;
@@ -366,9 +368,9 @@ int ltotape_map_st2sg (const char *devname, char *sgdevname)
       temp = NULL;
     }
 
-  /* 
+  /*
    * Given device name is already a 'nst' device; or if 'something else' (/dev/something) is
-   * passed by the user, 'open' should handle that below. 
+   * passed by the user, 'open' should handle that below.
    */
   } else {
     nstdevname = (char *)devname;
@@ -391,7 +393,7 @@ int ltotape_map_st2sg (const char *devname, char *sgdevname)
     if (outcome < 0) {
       ltfsmsg (LTFS_ERR, "20032E", devname, "SCSI_IOCTL_GET_IDLUN failed");
       if (allocated) {
-        free (nstdevname); 
+        free (nstdevname);
         nstdevname = NULL;
       }
       return -EDEV_DRIVER_ERROR;
@@ -399,7 +401,7 @@ int ltotape_map_st2sg (const char *devname, char *sgdevname)
     } else if ((fp = fopen ("/proc/scsi/sg/devices", "rb")) == (FILE *)NULL) {
       ltfsmsg (LTFS_ERR, "20032E", devname, "Unable to open /proc/scsi/sg/devices");
       if (allocated) {
-        free (nstdevname); 
+        free (nstdevname);
         nstdevname = NULL;
       }
       return -EDEV_INTERNAL_ERROR;
@@ -424,7 +426,7 @@ int ltotape_map_st2sg (const char *devname, char *sgdevname)
 
       if (!found) {
         if (allocated) {
-          free (nstdevname); 
+          free (nstdevname);
           nstdevname = NULL;
         }
         return -EDEV_DEVICE_UNSUPPORTABLE;
@@ -433,7 +435,7 @@ int ltotape_map_st2sg (const char *devname, char *sgdevname)
         sprintf (sgdevname, "/dev/sg%d", i);
         ltfsmsg (LTFS_DEBUG, "20034D", nstdevname, sgdevname, dev_host_no, dev_channel, dev_scsi_id, dev_lun);
         if (allocated) {
-          free (nstdevname); 
+          free (nstdevname);
           nstdevname = NULL;
         }
         return DEVICE_GOOD;
@@ -463,7 +465,7 @@ int ltotape_open (const char *devname, void **handle)
 
   memset (&inq_data, 0, sizeof (struct tc_inq));
 
-  /* 
+  /*
    * We use the SCSI generic driver for ioctls. Here we attempt to map a given 'st' device
    * to a corresponding 'sg' device...
    */
@@ -479,7 +481,7 @@ int ltotape_open (const char *devname, void **handle)
     return -EDEV_NO_MEMORY;
   }
 
-  /* 
+  /*
    * Open the device:
    */
   device->fd = open (sgdevname, O_RDWR | O_NDELAY);
@@ -489,7 +491,7 @@ int ltotape_open (const char *devname, void **handle)
       if (errno == EAGAIN) {
         ltfsmsg (LTFS_ERR, "20086E", devname);
         ret = -EDEV_DEVICE_BUSY;
-  
+
       } else {
         ltfsmsg (LTFS_ERR, "20087E", devname, errno);
         ret = -EDEV_DEVICE_UNOPENABLE;
@@ -500,7 +502,7 @@ int ltotape_open (const char *devname, void **handle)
     ltfsmsg (LTFS_WARN, "20088W", devname);
   }
 
-  /* 
+  /*
    * Lock the opened device.
    */
   if (flock (device->fd, LOCK_EX | LOCK_NB) != 0) {
@@ -518,17 +520,17 @@ int ltotape_open (const char *devname, void **handle)
   ioctl (device->fd, SG_GET_RESERVED_SIZE, &res_sz);
   ltfsmsg (LTFS_DEBUG, "20020D", res_sz);
 
-  /* 
+  /*
    * Set up the default timeout, should be overwritten by each backend function:
    */
   device->timeout_ms = LTO_DEFAULT_TIMEOUT;
 
-  /* 
+  /*
    * Default Early Warning EOM state is that we're not yet at the warning point:
    */
   device->eweomstate = before_eweom;
 
-  /* 
+  /*
    * Default logfile directory - initially NULL; will get set if/when we parse FUSE options..
    */
   device->logdir = NULL;

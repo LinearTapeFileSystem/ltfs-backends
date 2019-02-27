@@ -11,7 +11,7 @@
 #  under the terms of version 2.1 of the GNU Lesser General Public License
 #  as published by the Free Software Foundation.
 #
-# This program is distributed in the hope that it will be useful, but 
+# This program is distributed in the hope that it will be useful, but
 #  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 #  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public
 #  License for more details.
@@ -31,8 +31,8 @@ libdir = @libdir@/ltfs
 AM_LIBTOOLFLAGS = --tag=disable-static
 
 libdriver_ltotape_la_SOURCES = ltotape.c  ltotape_diag.c  ltotape_platform.c
-libdriver_ltotape_la_DEPENDENCIES = $(top_srcdir)/messages/libdriver_ltotape_dat.la
-libdriver_ltotape_la_LIBADD = $(top_srcdir)/messages/libdriver_ltotape_dat.la
+libdriver_ltotape_la_DEPENDENCIES = $(top_srcdir)/messages/libdriver_ltotape_dat.a
+libdriver_ltotape_la_LIBADD = $(top_srcdir)/messages/libdriver_ltotape_dat.a
 libdriver_ltotape_la_CPPFLAGS = @AM_CPPFLAGS@ -I$(top_srcdir)/src
 libdriver_ltotape_la_LDFLAGS = -avoid-version -module
 
