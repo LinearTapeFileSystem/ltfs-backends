@@ -35,7 +35,6 @@
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <scsi/sg.h>
-#include <scsi/scsi.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
 #include <string.h>
@@ -46,6 +45,7 @@
 #include "ltotape.h"
 #include "ltotape_diag.h"
 #include "ltotape_supdevs.h"
+#include <scsi/scsi.h>
 
 /*
  * Max transfer size to ask the SG driver to handle (1MB):
