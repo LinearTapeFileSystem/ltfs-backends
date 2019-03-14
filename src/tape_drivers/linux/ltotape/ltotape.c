@@ -3228,14 +3228,14 @@ const char *tape_dev_get_message_bundle_name (void **message_data)
   return "driver_ltotape";
 }
 
-#ifdef IBM_LTFS_BUILD
-#include "ltotape_compat.c"
-#endif
 
 /**
  * Finally declare the set of operations defined by this backend
  * and provide a function to access the structure:
  */
+#ifdef IBM_LTFS_BUILD
+#include "ltotape_compat.c"
+#else
 struct tape_ops ltotape_drive_handler ={
         .open                   = ltotape_open,
         .reopen                 = ltotape_reopen,
@@ -3254,9 +3254,7 @@ struct tape_ops ltotape_drive_handler ={
         .erase                  = ltotape_erase,
         .load                   = ltotape_load,
         .unload                 = ltotape_unload,
-#ifndef IBM_LTFS_BUILD
         .loadunload             = ltotape_ext_loadunload,
-#endif
         .readpos                = ltotape_readposition,
         .setcap                 = ltotape_setcap,
         .format                 = ltotape_format,
@@ -3271,9 +3269,7 @@ struct tape_ops ltotape_drive_handler ={
         .read_attribute         = ltotape_read_attribute,
         .write_attribute        = ltotape_write_attribute,
         .allow_overwrite        = ltotape_allow_overwrite,
-#ifndef IBM_LTFS_BUILD
         .report_density         = ltotape_report_density,
-#endif
         .set_compression        = ltotape_set_compression,
         .set_default            = ltotape_set_default,
         .get_cartridge_health   = ltotape_get_cartridge_health,
@@ -3289,23 +3285,13 @@ struct tape_ops ltotape_drive_handler ={
         .default_device_name    = ltotape_default_device_name,
         .set_key                = ltotape_set_key,
         .get_keyalias           = ltotape_get_keyalias,
-#ifdef IBM_LTFS_BUILD
-        .takedump_drive         = _ltotape_takedump_drive,
-        .is_mountable           = _ltotape_is_mountable,
-#else
         .takedump_drive         = ltotape_takedump_drive,
         .is_mountable           = ltotape_is_mountable,
         .update_mam_attr        = ltotape_update_mam_attr,
-#endif
         .get_worm_status        = ltotape_get_worm_status,
-#ifdef IBM_LTFS_BUILD
-	.get_serialnumber       = ltotape_get_serialnumber,
-	.set_profiler           = ltotape_set_profiler,
-	.get_block_in_buffer    = ltotape_get_block_in_buffer,
-	.is_readonly            = ltotape_is_readonly,
-#endif
 
 };
+#endif
 
 struct tape_ops *tape_dev_get_ops (void)
 {
