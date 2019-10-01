@@ -342,6 +342,11 @@ int dummy_get_serialnumber(void *device, char **result)
 	return DEVICE_GOOD;
 }
 
+static int dummy_get_info(void *device, struct tc_drive_info *info)
+{
+	return DEVICE_GOOD;
+}
+
 int dummy_set_profiler(void *device, char *work_dir, bool enable)
 {
 	/* Do nohting: file backend does not support profiler */
@@ -404,6 +409,7 @@ struct tape_ops dummy_handler = {
 	.is_mountable           = dummy_is_mountable,
 	.get_worm_status        = dummy_get_worm_status,
 	.get_serialnumber       = dummy_get_serialnumber,
+	.get_info               = dummy_get_info,
 	.set_profiler           = dummy_set_profiler,
 	.get_block_in_buffer    = dummy_get_block_in_buffer,
 	.is_readonly            = dummy_is_readonly,

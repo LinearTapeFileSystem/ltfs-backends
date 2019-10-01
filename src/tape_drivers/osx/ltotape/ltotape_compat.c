@@ -47,6 +47,13 @@ ltotape_get_serialnumber(void *device, char **result)
 }
 
 static int
+ltotape_get_info(void *device, struct tc_drive_info *info)
+{
+	/* Do nothing at this time */
+	return 0;
+}
+
+static int
 ltotape_set_profiler(void *device, char *work_dir, bool enable)
 {
 	printf("uninmplemente\n");
@@ -720,6 +727,7 @@ struct tape_ops ltotape_drive_handler = {
         .is_mountable           = _ltotape_is_mountable,
         .get_worm_status        = ltotape_wrapper_get_worm_status,
 	.get_serialnumber       = ltotape_get_serialnumber,
+	.get_info               = ltotape_get_info,
 	.set_profiler           = ltotape_set_profiler,
 	.get_block_in_buffer    = ltotape_get_block_in_buffer,
 	.is_readonly            = ltotape_is_readonly,
