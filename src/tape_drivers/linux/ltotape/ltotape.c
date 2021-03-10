@@ -85,7 +85,7 @@ int ltotape_unload (void *device, struct tc_position *pos);
 int ltotape_ext_loadunload (void *device, struct tc_position *pos, bool load, bool hold);
 int ltotape_readposition (void *device, struct tc_position *pos);
 int ltotape_format (void *device, TC_FORMAT_TYPE format, const char *vol_name, const char *barcode_name, const char *vol_mam_uuid);
-int ltotape_logsense (void *device, const uint8_t page, unsigned char *buf, const size_t size);
+int ltotape_logsense (void *device, const uint8_t page, const uint8_t subpage, unsigned char *buf, const size_t size);
 int ltotape_remaining_capacity (void *device, struct tc_remaining_cap *cap);
 int ltotape_modesense (void *device, const uint8_t page, const TC_MP_PC_TYPE pc, const uint8_t subpage, unsigned char *buf, const size_t size);
 int ltotape_modeselect (void *device, unsigned char *buf, const size_t size);
@@ -1046,7 +1046,7 @@ int ltotape_load (void *device, struct tc_position *pos)
   /* Check for ENOMEDIUM, in which case we'll get out! */
   if (read_pos_status == -ENOMEDIUM)
     return read_pos_status;
-#endif   
+#endif
 
    status = ltotape_loadunload (device, TRUE, FALSE);  /* TRUE to load, FALSE to load fully (not hold)*/
 
@@ -1072,12 +1072,12 @@ int ltotape_load (void *device, struct tc_position *pos)
          switch (mediatype) {
             case LTOMEDIATYPE_LTO8RW    : pMediaName = "LTO8RW";    status = 0;  break;
             case LTOMEDIATYPE_LTO8WORM  : pMediaName = "LTO8WORM";  status = -1; break;
-            case LTOMEDIATYPE_LTO8TYPEM : pMediaName = "LTO8TYPEM"; status = 0;  break;  
+            case LTOMEDIATYPE_LTO8TYPEM : pMediaName = "LTO8TYPEM"; status = 0;  break;
             case LTOMEDIATYPE_LTO7RW    : pMediaName = "LTO7RW";    status = 0;  break;
             case LTOMEDIATYPE_LTO7WORM  : pMediaName = "LTO7WORM";  status = -1; break;
-            case LTOMEDIATYPE_LTO6RW    : pMediaName = "LTO6RW";    status = 0;  break; 
+            case LTOMEDIATYPE_LTO6RW    : pMediaName = "LTO6RW";    status = 0;  break;
             case LTOMEDIATYPE_LTO6WORM  : pMediaName = "LTO6WORM";  status = -1; break;
-            case LTOMEDIATYPE_LTO5RW    : pMediaName = "LTO5RW";    status = 0;  break; 
+            case LTOMEDIATYPE_LTO5RW    : pMediaName = "LTO5RW";    status = 0;  break;
             case LTOMEDIATYPE_LTO5WORM  : pMediaName = "LTO5WORM";  status = -1; break;
             case LTOMEDIATYPE_LTO4RW    : pMediaName = "LTO4RW";    status = -1; break;
             case LTOMEDIATYPE_LTO4WORM  : pMediaName = "LTO4WORM";  status = -1; break;
@@ -1105,7 +1105,7 @@ int ltotape_load (void *device, struct tc_position *pos)
 int ltotape_unload(void *device, struct tc_position *pos)
 {
    int status = ltotape_loadunload (device, FALSE, FALSE);   /* FALSE to unload, FALSE to unload fully (not hold)*/
-   
+
    ltotape_readposition (device, pos);
    return status;
 }
@@ -1116,7 +1116,7 @@ int ltotape_unload(void *device, struct tc_position *pos)
 * This is therefore more than a bit similar to the preceding (legacy) functions,
 *  but the ability to specify the HOLD state is important in some cases.  Also
 *  this does not check for ENOMEDIUM on a load, so that a load will be attempted
-*  even if no cartridge is currently loaded / threaded.  Whether or not that 
+*  even if no cartridge is currently loaded / threaded.  Whether or not that
 *  is wise or will succeed is beyond our control here.
 * @param device a pointer to the ltotape backend
 * @param pos a pointer to position data. This function will update position infomation.
@@ -1295,17 +1295,17 @@ int ltotape_format (void *device, TC_FORMAT_TYPE format, const char *vol_name, c
     return 0;
   }
 
-  /* 
+  /*
    * Before starting the format, check whether there is a pre-existing barcode;
    *  if there is, and it looks like a truncated version of the string passed in
    *  to us, then make a note of it so that we can write it back again afterwards!
    * The check of the first six chars should cover the case where it has been
    *  truncated by the software; intentionally different names need to be trusted.
-   * 
+   *
    * HOWEVER - since this function is also called to unformat a volume (with NULL
    *  passed in for the barcode_name), we'd better not attempt the string compare
-   *  if the provided barcode_name is null, since it might just cause a crash... 
-   * 
+   *  if the provided barcode_name is null, since it might just cause a crash...
+   *
    *  CR 11443.
    */
   if (ltotape_read_attribute (device, 0, TC_MAM_BARCODE, mam_buf, sizeof(mam_buf)) == 0) {
@@ -1314,7 +1314,7 @@ int ltotape_format (void *device, TC_FORMAT_TYPE format, const char *vol_name, c
     }
     currentBarcode[TC_MAM_BARCODE_LEN] = '\0';
 
-    if (barcode_name == NULL) { 
+    if (barcode_name == NULL) {
       /* no barcode provided by invoker so don't check it, won't be set anyway */
 
     } else if (strncmp (currentBarcode, barcode_name, 6) == 0) {
@@ -1358,7 +1358,7 @@ int ltotape_format (void *device, TC_FORMAT_TYPE format, const char *vol_name, c
     if (alreadyGotBarcode) {
       ltotape_set_MAMattributes (device, format, vol_name, TC_MAM_PAGE_ATTRIBUTE_ALL, (const char*)currentBarcode, UNLOCKED_MAM, vol_mam_uuid);
 
-    /* 
+    /*
      * Otherwise use whatever we were given:
      */
     } else {
@@ -1373,16 +1373,25 @@ int ltotape_format (void *device, TC_FORMAT_TYPE format, const char *vol_name, c
  * Retrieve log data from the drive
  * @param device a pointer to the ltotape backend
  * @param page page code of log sense
+ * @param subpage subpage code of log sense
  * @param buf pointer to buffer to store log data
  * @param size length of the buffer
  * @return 0 on success or a negative value on error
  */
-int ltotape_logsense (void *device, const uint8_t page, unsigned char *buf, const size_t size)
+int ltotape_logsense (void *device, const uint8_t page, const uint8_t subpage,
+					  unsigned char *buf, const size_t size)
 {
   ltotape_scsi_io_type *sio = (ltotape_scsi_io_type*)device;
   int                   status;
 
   ltfsmsg (LTFS_DEBUG, "20061D", "logsense", page);
+
+  unsigned int len = 0;
+  unsigned char *inner_buf = NULL;
+
+  inner_buf = calloc(1, MAXLP_SIZE); /* Assume max length of LP is 1MB */
+  if (!inner_buf)
+    return -LTFS_NO_MEMORY;
 
   /*
    * Set up the cdb:
@@ -1390,12 +1399,12 @@ int ltotape_logsense (void *device, const uint8_t page, unsigned char *buf, cons
   sio->cdb[0] = CMDlog_sense;
   sio->cdb[1] = 0;
   sio->cdb[2] = (unsigned char)(0x40 | (page & 0x3F)); /* set PC=01b for current values */
-  sio->cdb[3] = 0;
+  sio->cdb[3] = subpage;
   sio->cdb[4] = 0;
   sio->cdb[5] = 0;
   sio->cdb[6] = 0;
-  sio->cdb[7] = (unsigned char)((size & 0xFF00) >> 8);
-  sio->cdb[8] = (unsigned char)(size & 0xFF);
+  sio->cdb[7] = (unsigned char)((MAXLP_SIZE & 0xFF00) >> 8);
+  sio->cdb[8] = (unsigned char)(MAXLP_SIZE & 0xFF);
   sio->cdb[9] = 0;
 
   sio->cdb_length = 10;         /* ten-byte cdb */
@@ -1403,8 +1412,8 @@ int ltotape_logsense (void *device, const uint8_t page, unsigned char *buf, cons
 /*
  * Set up the data part:
  */
-  sio->data = buf;
-  sio->data_length = size;
+  sio->data = inner_buf;
+  sio->data_length = MAXLP_SIZE;
   sio->data_direction = HOST_READ;
 
   /*
@@ -1412,6 +1421,18 @@ int ltotape_logsense (void *device, const uint8_t page, unsigned char *buf, cons
    */
   sio->timeout_ms = (sio->family == drivefamily_lto) ? LTO_LOGSENSE_TIMEOUT : DAT_LOGSENSE_TIMEOUT;
   status = ltotape_scsiexec (sio);
+
+  if (status == 0) {
+    len = ((int)inner_buf[2] << 8) + (int)inner_buf[3] + 4;
+
+    if (size > len)
+      memcpy(buf, inner_buf, len);
+    else
+      memcpy(buf, inner_buf, size);
+
+    status = len;
+  }
+  free(inner_buf);
 
   return status;
 }
@@ -1872,7 +1893,7 @@ int ltotape_write_attribute (void *device, const tape_partition_t part, const un
      return -EDEV_NO_MEMORY;
 #endif
   }
-  
+
   *pRawData     = (unsigned char)(size >> 24);
   *(pRawData+1) = (unsigned char)(size >> 16);
   *(pRawData+2) = (unsigned char)(size >>  8);
@@ -1967,7 +1988,7 @@ int ltotape_allow_overwrite (void *device, const struct tc_position pos)
 
   sio->cdb_length = 16;		/* sixteen-byte cdb */
 
-  /* 
+  /*
    * Setup the data part:
    */
   sio->data = NULL;
@@ -2137,7 +2158,7 @@ int ltotape_get_parameters (void *device, struct tc_drive_param *drive_param)
   drive_param->write_protect = ((modeheader[3] & 0x80) == 0x80) ? true : false;
   drive_param->logical_write_protect = 0;  /* n/a in this backend */
 
-/* 
+/*
  * Since LTO7 and LTO8 drive can not write to LTO5RW media,
  * Set logical_write_protect to 1 if an LTO5RW tape inserted into an LTO7 or LTO8 drive
  * and logical_write_protect to 1 if an LTO6RW tape inserted into an LTO8 drive
@@ -2579,7 +2600,7 @@ static int ltotape_set_MAMattributes (void* device, TC_FORMAT_TYPE format, const
 #endif
       len = LTOATTRIB_APPLICATION_VENDOR_LEN + ATTRIB_HEADER_LEN;
     }
-    
+
     status = ltotape_write_attribute (device, (const tape_partition_t)0, buf, len);
 
     /* Cleanup. */
@@ -2884,12 +2905,12 @@ int ltotape_get_cartridge_health (void *device, struct tc_cartridge_health *cart
   int           rc = 0;
   uint64_t      loghlt;
 
-  
+
 /*
  * "Tape Efficiency" is not supported:
  */
   cart_health->tape_efficiency  = UNSUPPORTED_CARTRIDGE_HEALTH;
-  
+
 /*
  * Read the Volume Statistics log page, defaulting everything to unsupported
  *  in case the command fails:
@@ -2909,7 +2930,7 @@ int ltotape_get_cartridge_health (void *device, struct tc_cartridge_health *cart
   cart_health->passes_middle    = UNSUPPORTED_CARTRIDGE_HEALTH;
 
   rc = ltotape_logsense (device, LOG_PAGE_VOLUMESTATS, logdata, LOGSENSEPAGE);
-  if (rc) {
+  if (rc < 0) {
     ltfsmsg (LTFS_ERR, "12135E", LOG_PAGE_VOLUMESTATS, rc);
 
   } else {
@@ -2979,10 +3000,11 @@ int ltotape_get_tape_alert (void *device, uint64_t* taflags)
   *taflags = 0;
 
   rc = ltotape_logsense (device, LOG_PAGE_TAPE_ALERT, logdata, LOGSENSEPAGE);
-  if (rc) {
+  if (rc < 0) {
     ltfsmsg (LTFS_ERR, "12135E", LOG_PAGE_TAPE_ALERT, rc);
 
   } else {
+    rc = 0;
     for (i = 1; i <= 64; i++) {
       if (parse_logPage (logdata, (uint16_t)i, &param_size, buf, 16) ||
         (param_size != sizeof (uint8_t))) {
@@ -3067,7 +3089,7 @@ int ltotape_get_eod_status (void *device, int part)
    * Read the Volume Statistics log page:
    */
   rc = ltotape_logsense (device, LOG_PAGE_VOLUMESTATS, logdata, LOGSENSEPAGE);
-  if (rc) {
+  if (rc < 0) {
     ltfsmsg (LTFS_WARN, "12170W", LOG_PAGE_VOLUMESTATS, rc);
     return EOD_UNKNOWN;
   }
@@ -3081,7 +3103,7 @@ int ltotape_get_eod_status (void *device, int part)
    *
    * LTO7 and LTO8 drives do not support this log parameter but the firmware does support
    *   the required features, so this initial check is not necessary and we can move on
-   *   to the next part... 
+   *   to the next part...
    */
   drv = ((ltotape_scsi_io_type *)device)->type;
   if ((drv != drive_lto7) && (drv != drive_lto8)) {
@@ -3097,7 +3119,7 @@ int ltotape_get_eod_status (void *device, int part)
   /*
    * Find & extract the "Approximate used native capacity of partitions" param (0x203):
    */
-  if ((parse_logPage (logdata, (uint16_t)VOLSTATS_USED_CAPACITY, &param_size, buf, 16) != 0) || 
+  if ((parse_logPage (logdata, (uint16_t)VOLSTATS_USED_CAPACITY, &param_size, buf, 16) != 0) ||
       (param_size != sizeof (buf))) {
     ltfsmsg (LTFS_WARN, "12171W");
     return EOD_UNKNOWN;
@@ -3112,7 +3134,7 @@ int ltotape_get_eod_status (void *device, int part)
     paramlen = buf[i];
     partition = (uint16_t)(buf[i + 2] << 8) + (uint16_t)buf[i + 3];
 
-    if (((paramlen - LOG_PAGE_VOL_PART_HEADER_SIZE + 1) == sizeof (uint32_t)) && 
+    if (((paramlen - LOG_PAGE_VOL_PART_HEADER_SIZE + 1) == sizeof (uint32_t)) &&
         (partition < 2)) {
 
       part_cap[partition] = ((uint32_t)buf[i + 4] << 24) + ((uint32_t)buf[i + 5] << 16) +

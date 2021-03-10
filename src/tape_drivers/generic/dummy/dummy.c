@@ -223,7 +223,8 @@ int dummy_set_xattr(void *device, const char *name, const char *buf, size_t size
 	return DEVICE_GOOD;
 }
 
-int dummy_logsense(void *device, const uint8_t page, unsigned char *buf, const size_t size)
+int dummy_logsense(void *device, const uint8_t page, const uint8_t subpage,
+				   unsigned char *buf, const size_t size)
 {
 	return DEVICE_GOOD;
 }
